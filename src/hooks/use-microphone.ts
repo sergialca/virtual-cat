@@ -20,6 +20,7 @@ const AUDIO_CONSTRAINTS: MediaStreamConstraints = {
 export function useMicrophone() {
   const [state, setState] = useState<MicState>("idle");
   const [failure, setFailure] = useState<MicFailure | null>(null);
+  const [liveTrackCount, setLiveTrackCount] = useState(0);
   const streamRef = useRef<MediaStream | null>(null);
   const generationRef = useRef(0);
   const grantedRef = useRef(false);
@@ -27,6 +28,7 @@ export function useMicrophone() {
   const releaseStream = useCallback(() => {
     stopMediaStream(streamRef.current);
     streamRef.current = null;
+    setLiveTrackCount(0);
   }, []);
 
   useEffect(() => {
@@ -124,6 +126,7 @@ export function useMicrophone() {
 
       streamRef.current = stream;
       grantedRef.current = true;
+      setLiveTrackCount(liveTracks.length);
       for (const track of liveTracks) {
         track.addEventListener("ended", () => {
           if (generationRef.current !== generation) {
@@ -162,5 +165,6 @@ export function useMicrophone() {
     stopTalking,
     isTalking: state === "talking",
     isRequesting: state === "requesting",
+    liveTrackCount,
   };
 }

@@ -137,6 +137,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
       className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-canvas px-5 pt-4 pb-6"
       data-mic-state={microphone.state}
       data-mic-capture={isTalking ? "on" : "off"}
+      data-mic-tracks={String(microphone.liveTrackCount)}
       data-caption-status={captionStatus}
     >
       <header className="flex items-center gap-3">
