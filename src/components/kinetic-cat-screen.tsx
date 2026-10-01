@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AudioLines,
   Copy,
@@ -63,10 +63,16 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
     transcripts,
     livePartial,
     sessionError,
+    agentPresent,
     onTalkStart,
     onTalkStop,
     resetSession,
+    setPlaybackVolume,
   } = useVoiceCatSession();
+
+  useEffect(() => {
+    setPlaybackVolume(volume / 100);
+  }, [setPlaybackVolume, volume]);
 
   const isTalking = micState === "talking";
   const catAnimating = catState === "listening" || catState === "talking";
@@ -86,7 +92,9 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
     mode === "mock"
       ? "Modo demo — conecta LiveKit para voz real"
       : mode === "livekit"
-        ? "Agente en vivo"
+        ? agentPresent
+          ? "Agente en vivo"
+          : "Sala lista — esperando al agente"
         : mode === "error"
           ? "Sin conexión al agente"
           : "Conectando…";
@@ -142,7 +150,8 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
     setMicLevel(0);
   }
 
-  const talkDisabled = micState === "requesting";
+  const talkDisabled =
+    micState === "requesting" || mode === "loading" || mode === "error";
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-canvas px-5 pt-4 pb-6">
@@ -152,7 +161,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-heading text-[1.15rem] leading-6 font-bold tracking-[-0.01em] text-ink">
-            Kinetic Cat
+            Virtual cat
           </p>
           <p className="mt-0.5 flex items-center gap-1.5 font-heading text-[10px] font-bold tracking-[0.08em] text-online uppercase">
             <span className="size-1.5 rounded-full bg-online" aria-hidden />

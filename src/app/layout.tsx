@@ -15,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Kinetic Cat",
+  title: "Virtual cat",
   description:
     "Asistente de voz Kinetic Cat. La interfaz es local: no hay micrófono, voz ni cuentas conectadas.",
 };

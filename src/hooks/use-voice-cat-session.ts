@@ -7,6 +7,7 @@ import {
   Room,
   RoomEvent,
   Track,
+  type RemoteTrack,
 } from "livekit-client";
 import {
   type AgentDataMessage,
@@ -31,6 +32,14 @@ export type VoiceMode = "loading" | "mock" | "livekit" | "error";
 const MOCK_ASSISTANT =
   "¡Miau! En modo demo no hay agente en la nube, pero ya escuché tu micrófono. Cuando conectes LiveKit, te responderé de verdad.";
 
+function describeSessionError(err: unknown) {
+  const message = err instanceof Error ? err.message : "LiveKit connection failed.";
+  if (/invalid token/i.test(message)) {
+    return "LiveKit rechazó la credencial. Copia la API key y el secret actuales del proyecto en .env y reinicia el servidor.";
+  }
+  return message;
+}
+
 export function useVoiceCatSession() {
   const [mode, setMode] = useState<VoiceMode>("loading");
   const [connectionState, setConnectionState] = useState<ConnectionState>(
@@ -41,9 +50,13 @@ export function useVoiceCatSession() {
   const [livePartial, setLivePartial] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [agentAudioPlaying, setAgentAudioPlaying] = useState(false);
+  const [agentPresent, setAgentPresent] = useState(false);
 
   const roomRef = useRef<Room | null>(null);
   const localTrackRef = useRef<LocalAudioTrack | null>(null);
+  const audioElementsRef = useRef<HTMLMediaElement[]>([]);
+  const playbackVolumeRef = useRef(1);
+  const connectPromiseRef = useRef<Promise<Room | null> | null>(null);
   const mockTalkingTimer = useRef<number | null>(null);
 
   const upsertTranscript = useCallback((msg: AgentDataMessage & { type: "transcript" }) => {
@@ -109,7 +122,36 @@ export function useVoiceCatSession() {
     [upsertTranscript],
   );
 
+  const releaseAgentAudio = useCallback(() => {
+    for (const el of audioElementsRef.current) {
+      el.pause();
+      el.remove();
+    }
+    audioElementsRef.current = [];
+    setAgentAudioPlaying(false);
+  }, []);
+
+  const attachAgentAudio = useCallback((track: RemoteTrack) => {
+    if (track.kind !== Track.Kind.Audio) return;
+    const el = track.attach();
+    el.autoplay = true;
+    el.volume = playbackVolumeRef.current;
+    el.dataset.agentAudio = "true";
+    document.body.append(el);
+    audioElementsRef.current.push(el);
+    const markTalking = () => {
+      setAgentAudioPlaying(true);
+      setCatState("talking");
+    };
+    el.addEventListener("play", markTalking);
+    void el.play().then(markTalking).catch(() => undefined);
+  }, []);
+
   const connectLiveKit = useCallback(async () => {
+    if (roomRef.current?.state === ConnectionState.Connected) {
+      return roomRef.current;
+    }
+
     const res = await fetch("/api/livekit/token");
     if (!res.ok) {
       throw new Error("Could not mint a LiveKit token.");
@@ -133,66 +175,106 @@ export function useVoiceCatSession() {
       handleData(payload);
     });
     room.on(RoomEvent.TrackSubscribed, (track) => {
-      if (track.kind === Track.Kind.Audio) {
-        const el = track.attach();
-        el.onplay = () => {
-          setAgentAudioPlaying(true);
-          setCatState("talking");
-        };
-        el.onended = () => {
-          setAgentAudioPlaying(false);
-          setCatState("idle");
-        };
-        void el.play().catch(() => undefined);
+      attachAgentAudio(track);
+    });
+    room.on(RoomEvent.TrackUnsubscribed, (track) => {
+      for (const el of track.detach()) {
+        el.remove();
+        audioElementsRef.current = audioElementsRef.current.filter(
+          (node) => node !== el,
+        );
+      }
+    });
+    room.on(RoomEvent.ParticipantConnected, (participant) => {
+      if (participant.identity !== room.localParticipant.identity) {
+        setAgentPresent(true);
+      }
+    });
+    room.on(RoomEvent.ParticipantDisconnected, () => {
+      const others = room.remoteParticipants.size > 0;
+      setAgentPresent(others);
+    });
+    room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+      const agentSpeaking = speakers.some(
+        (speaker) => speaker.identity !== room.localParticipant.identity,
+      );
+      if (agentSpeaking) {
+        setAgentAudioPlaying(true);
+        setCatState("talking");
+      } else if (localTrackRef.current) {
+        setAgentAudioPlaying(false);
+        setCatState("listening");
       }
     });
 
-    await room.connect(body.url, body.token);
+    await Promise.race([
+      room.connect(body.url, body.token),
+      new Promise<never>((_, reject) => {
+        window.setTimeout(() => {
+          reject(new Error("LiveKit connection timed out."));
+        }, 8000);
+      }),
+    ]);
+    setAgentPresent(room.remoteParticipants.size > 0);
+    for (const participant of room.remoteParticipants.values()) {
+      for (const publication of participant.audioTrackPublications.values()) {
+        if (publication.track) attachAgentAudio(publication.track);
+      }
+    }
     setMode("livekit");
     return room;
-  }, [handleData]);
+  }, [attachAgentAudio, handleData]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        await connectLiveKit();
-      } catch (err) {
-        if (!cancelled) {
-          setMode("error");
-          setSessionError(
-            err instanceof Error ? err.message : "LiveKit connection failed.",
-          );
+    let active = true;
+    const pending = connectLiveKit()
+      .then((room) => {
+        if (!active) {
+          void room?.disconnect();
+          if (roomRef.current === room) roomRef.current = null;
+          return null;
         }
-      }
-    })();
+        return room;
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setMode("error");
+          setSessionError(describeSessionError(err));
+        }
+        return null;
+      });
+    connectPromiseRef.current = pending;
 
     return () => {
-      cancelled = true;
+      active = false;
       if (mockTalkingTimer.current) {
         window.clearTimeout(mockTalkingTimer.current);
       }
-      void roomRef.current?.disconnect();
-      roomRef.current = null;
+      void pending.then((room) => {
+        releaseAgentAudio();
+        void room?.disconnect();
+        if (room && roomRef.current === room) roomRef.current = null;
+      });
     };
-  }, [connectLiveKit]);
+  }, [connectLiveKit, releaseAgentAudio]);
 
-  const publishMic = useCallback(async (stream: MediaStream) => {
-    const room = roomRef.current;
-    if (!room || mode !== "livekit") return;
-
+  const publishMic = useCallback(async (room: Room, stream: MediaStream) => {
     const mediaTrack = stream.getAudioTracks()[0];
     if (!mediaTrack) return;
 
+    await room.startAudio();
+
     if (!localTrackRef.current) {
       localTrackRef.current = new LocalAudioTrack(mediaTrack);
-      await room.localParticipant.publishTrack(localTrackRef.current);
+      await room.localParticipant.publishTrack(localTrackRef.current, {
+        source: Track.Source.Microphone,
+      });
     } else {
       await localTrackRef.current.unmute();
     }
 
     setCatState("listening");
-  }, [mode]);
+  }, []);
 
   const unpublishMic = useCallback(async () => {
     const room = roomRef.current;
@@ -239,17 +321,24 @@ export function useVoiceCatSession() {
     }, 600);
   }, []);
 
+  const setPlaybackVolume = useCallback((value: number) => {
+    const volume = Math.min(1, Math.max(0, value));
+    playbackVolumeRef.current = volume;
+    for (const el of audioElementsRef.current) {
+      el.volume = volume;
+    }
+  }, []);
+
   const onTalkStart = useCallback(
     async (stream: MediaStream) => {
-      if (mode === "mock") {
+      const room = await connectPromiseRef.current;
+      if (!room) {
         setCatState("listening");
         return;
       }
-      if (mode === "livekit") {
-        await publishMic(stream);
-      }
+      await publishMic(room, stream);
     },
-    [mode, publishMic],
+    [publishMic],
   );
 
   const onTalkStop = useCallback(async () => {
@@ -274,8 +363,10 @@ export function useVoiceCatSession() {
     transcripts,
     livePartial,
     sessionError,
+    agentPresent,
     onTalkStart,
     onTalkStop,
     resetSession,
+    setPlaybackVolume,
   };
 }

@@ -1,7 +1,14 @@
-import { AccessToken } from "livekit-server-sdk";
+import {
+  AccessToken,
+  RoomAgentDispatch,
+  RoomConfiguration,
+} from "livekit-server-sdk";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const DEFAULT_AGENT_NAME = "virtual-cat";
 
 function liveKitConfigured() {
   return Boolean(
@@ -21,6 +28,7 @@ export async function GET() {
 
   const roomName = `mochi-${crypto.randomUUID().slice(0, 8)}`;
   const identity = `user-${crypto.randomUUID().slice(0, 8)}`;
+  const agentName = process.env.LIVEKIT_AGENT_NAME || DEFAULT_AGENT_NAME;
 
   const token = new AccessToken(
     process.env.LIVEKIT_API_KEY!,
@@ -28,6 +36,7 @@ export async function GET() {
     {
       identity,
       name: "You",
+      ttl: "1h",
     },
   );
 
@@ -39,6 +48,11 @@ export async function GET() {
     canPublishData: true,
   });
 
+  token.roomConfig = new RoomConfiguration({
+    name: roomName,
+    agents: [new RoomAgentDispatch({ agentName })],
+  });
+
   const jwt = await token.toJwt();
 
   return NextResponse.json({
@@ -48,5 +62,6 @@ export async function GET() {
     url: process.env.LIVEKIT_URL,
     roomName,
     identity,
+    agentName,
   });
 }
