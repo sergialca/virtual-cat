@@ -17,7 +17,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Kinetic Cat",
   description:
-    "Asistente de voz Kinetic Cat. La interfaz es local: no hay micrófono, voz ni cuentas conectadas.",
+    "Asistente Kinetic Cat. Talk pide el micrófono del navegador; no hay LiveKit, cuentas ni base de datos.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

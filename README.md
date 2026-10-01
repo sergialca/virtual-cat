@@ -1,6 +1,8 @@
 # Virtual assistant
 
-First UI slice: a 2D talking-cat stage (placeholder avatar, talk control, captions). No live voice, auth, or database yet.
+2D Kinetic Cat stage with talk controls that require the browser microphone. No LiveKit, auth, or database.
+
+Talk does not start capture until `getUserMedia` succeeds. Stop releases the mic track. Captions stay local placeholder copy (including Mochi empty / miss states).
 
 ## Package manager
 
@@ -12,7 +14,7 @@ pnpm install
 pnpm dev
 ```
 
-Then open the URL printed by Next.js (this project’s `dev` script uses port **43123**).
+Then open the URL printed by Next.js (this project’s `dev` script uses port **43123**). Allow or block the microphone from the browser prompt to see the talk states.
 
 Other scripts:
 
