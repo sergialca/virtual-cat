@@ -6,6 +6,7 @@
     "dev": "next dev --port 43123",
     "build": "next build",
     "build:pages": "node scripts/export-github-pages.mjs",
+    "pages-deploy": "gh workflow run pages.yml --ref \"$(git rev-parse --abbrev-ref HEAD)\"",
     "start": "next start",
     "lint": "eslint"
   },

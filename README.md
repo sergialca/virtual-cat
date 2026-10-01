@@ -32,10 +32,10 @@ Credentials come from the same LiveKit Cloud project as the deployed agent. Next
 
 ### GitHub Pages
 
-The static site is published from `main` to [https://sergialca.github.io/virtual-cat/](https://sergialca.github.io/virtual-cat/). GitHub Pages cannot run `/api/livekit/token`, so that deployment stays in demo mode. Live voice still needs `pnpm dev` or another Node host that can keep the API secret on the server.
+The static site is at [https://sergialca.github.io/virtual-cat/](https://sergialca.github.io/virtual-cat/). Push the branch, then publish with `pnpm pages-deploy`. That starts the GitHub Actions workflow. A normal push does not deploy. GitHub Pages cannot run `/api/livekit/token`, so that deployment stays in demo mode. Live voice still needs `pnpm dev` or another Node host that can keep the API secret on the server.
 
 ```bash
-pnpm build:pages
+pnpm pages-deploy
 ```
 
 ## Scripts
