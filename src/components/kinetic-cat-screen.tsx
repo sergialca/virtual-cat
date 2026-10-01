@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AudioLines,
   Copy,
   Download,
   Languages,
   Mic,
+  MicOff,
   PawPrint,
   RotateCcw,
   SlidersHorizontal,
@@ -15,28 +16,104 @@ import {
   Volume2,
 } from "lucide-react";
 import { cn } from "cn";
+import { useMicrophone, type MicState } from "@/hooks/use-microphone";
+import { useVoiceCatSession } from "@/hooks/use-voice-cat-session";
 
 const WAVE_HEIGHTS = [
   10, 16, 26, 18, 34, 22, 40, 28, 16, 36, 24, 42, 18, 32, 14, 28, 38, 20, 30,
   16,
 ];
 
-const USER_LINE =
-  "Hola Dada, ¿puedes resumirme una noticia interesante?";
-const ASSISTANT_LINE = "¡Claro que sí! ...";
-const LIVE_LINE = "Explícame como se hundió el Titanic";
+function micStatusLabel(state: MicState): string {
+  switch (state) {
+    case "idle":
+      return "Micrófono inactivo";
+    case "requesting":
+      return "Pidiendo permiso…";
+    case "ready":
+      return "Micrófono listo";
+    case "talking":
+      return "Escuchando";
+    case "denied":
+      return "Micrófono bloqueado";
+    case "error":
+      return "Error de micrófono";
+    default:
+      return "Micrófono";
+  }
+}
 
 export function KineticCatScreen({ catSvg }: { catSvg: string }) {
-  const [listening, setListening] = useState(true);
   const [volume, setVolume] = useState(85);
   const [spatial, setSpatial] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [micLevel, setMicLevel] = useState(0);
 
-  const transcript = [USER_LINE, ASSISTANT_LINE, LIVE_LINE].join("\n");
+  const {
+    micState,
+    errorMessage: micError,
+    startTalking,
+    stopTalking,
+    resetMic,
+  } = useMicrophone({ onLevel: setMicLevel });
+
+  const {
+    mode,
+    catState,
+    transcripts,
+    livePartial,
+    sessionError,
+    onTalkStart,
+    onTalkStop,
+    resetSession,
+  } = useVoiceCatSession();
+
+  const isTalking = micState === "talking";
+  const catAnimating = catState === "listening" || catState === "talking";
+
+  const transcriptText = useMemo(() => {
+    const lines = transcripts.filter((t) => t.final).map((t) => t.text);
+    if (livePartial) lines.push(livePartial);
+    return lines.join("\n");
+  }, [transcripts, livePartial]);
+
+  const lastUser = [...transcripts].reverse().find((t) => t.role === "user" && t.final);
+  const lastAssistant = [...transcripts]
+    .reverse()
+    .find((t) => t.role === "assistant" && t.final);
+
+  const statusLine =
+    mode === "mock"
+      ? "Modo demo — conecta LiveKit para voz real"
+      : mode === "livekit"
+        ? "Agente en vivo"
+        : mode === "error"
+          ? "Sin conexión al agente"
+          : "Conectando…";
+
+  const greeting =
+    micState === "denied" || micState === "error"
+      ? micError ?? "No pude usar el micrófono."
+      : isTalking
+        ? "Te escucho… suelta Stop cuando termines."
+        : "¡Miau! Pulsa Talk y permite el micrófono para hablar conmigo.";
+
+  async function handleTalkToggle() {
+    if (isTalking) {
+      stopTalking();
+      await onTalkStop();
+      return;
+    }
+    const stream = await startTalking();
+    if (stream) {
+      await onTalkStart(stream);
+    }
+  }
 
   async function handleCopy() {
+    if (!transcriptText) return;
     try {
-      await navigator.clipboard.writeText(transcript);
+      await navigator.clipboard.writeText(transcriptText);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
@@ -45,7 +122,8 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
   }
 
   function handleExport() {
-    const blob = new Blob([transcript], { type: "text/plain;charset=utf-8" });
+    if (!transcriptText) return;
+    const blob = new Blob([transcriptText], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -55,11 +133,16 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
   }
 
   function handleReset() {
-    setListening(true);
+    stopTalking();
+    resetMic();
+    resetSession();
     setVolume(85);
     setSpatial(false);
     setCopied(false);
+    setMicLevel(0);
   }
+
+  const talkDisabled = micState === "requesting";
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-canvas px-5 pt-4 pb-6">
@@ -73,7 +156,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
           </p>
           <p className="mt-0.5 flex items-center gap-1.5 font-heading text-[10px] font-bold tracking-[0.08em] text-online uppercase">
             <span className="size-1.5 rounded-full bg-online" aria-hidden />
-            AI Assistant Online
+            {statusLine}
           </p>
         </div>
         <button
@@ -94,24 +177,42 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
 
       <div className="mt-5 flex justify-center">
         <p className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 font-heading text-[10px] font-bold tracking-[0.08em] text-ink uppercase shadow-card">
-          <span className="size-1.5 rounded-full bg-coral" aria-hidden />
+          <span
+            className={cn(
+              "size-1.5 rounded-full",
+              isTalking ? "bg-coral animate-pulse" : "bg-ink-soft",
+            )}
+            aria-hidden
+          />
           Kinetic Cat AI
           <span aria-hidden>•</span>
-          <span>{listening ? "Escuchando" : "En pausa"}</span>
+          <span>{micStatusLabel(micState)}</span>
           <AudioLines className="size-3.5 text-coral" aria-hidden />
         </p>
       </div>
 
-      <p className="mx-auto mt-4 max-w-[20.5rem] rounded-[1.35rem] bg-white px-5 py-3 text-center font-body text-[15px] leading-6 text-ink shadow-card">
-        ¡Miau! Te escucho perfectamente. Dime
-        <br />
-        qué transacción auditamos hoy.
+      <p
+        className={cn(
+          "mx-auto mt-4 max-w-[20.5rem] rounded-[1.35rem] bg-white px-5 py-3 text-center font-body text-[15px] leading-6 shadow-card",
+          micState === "denied" || micState === "error"
+            ? "text-coral"
+            : "text-ink",
+        )}
+        role="status"
+      >
+        {greeting}
       </p>
+
+      {sessionError ? (
+        <p className="mt-2 text-center font-body text-[13px] text-coral" role="alert">
+          {sessionError}
+        </p>
+      ) : null}
 
       <div
         role="img"
         aria-label="Avatar del gato Kinetic Cat"
-        data-talking={listening ? "true" : "false"}
+        data-talking={catAnimating ? "true" : "false"}
         className="cat-cartoon mx-auto mt-2 h-44 w-36 [&>svg]:h-full [&>svg]:w-full"
         dangerouslySetInnerHTML={{ __html: catSvg }}
       />
@@ -125,20 +226,40 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
             <Mic className="size-3.5 text-coral" aria-hidden />
             HD Mic Input
           </p>
-          <p className="font-body text-[11px] text-ink-soft">-18 dB • 48kHz</p>
+          <p className="font-body text-[11px] text-ink-soft">
+            {isTalking ? `${micLevel}% nivel` : "Pulsa Talk para habilitar"}
+          </p>
         </div>
 
-        <Waveform active={listening} />
+        <Waveform active={isTalking} />
 
         <div className="flex justify-center">
           <button
             type="button"
-            onClick={() => setListening((value) => !value)}
-            aria-pressed={listening}
-            className="inline-flex h-14 min-w-40 items-center justify-center gap-2 rounded-full bg-coral px-8 font-heading text-base font-bold text-white shadow-coral transition-transform hover:-translate-y-px"
+            disabled={talkDisabled}
+            onClick={() => void handleTalkToggle()}
+            aria-pressed={isTalking}
+            className={cn(
+              "inline-flex h-14 min-w-40 items-center justify-center gap-2 rounded-full px-8 font-heading text-base font-bold text-white shadow-coral transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60",
+              isTalking ? "bg-ink" : "bg-coral",
+            )}
           >
-            <Mic className="size-5" aria-hidden />
-            Talk
+            {micState === "requesting" ? (
+              <>
+                <Mic className="size-5 animate-pulse" aria-hidden />
+                Permiso…
+              </>
+            ) : isTalking ? (
+              <>
+                <MicOff className="size-5" aria-hidden />
+                Stop
+              </>
+            ) : (
+              <>
+                <Mic className="size-5" aria-hidden />
+                Talk
+              </>
+            )}
           </button>
         </div>
 
@@ -204,65 +325,82 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
             Transcripción en Vivo
           </h2>
           <span className="ml-auto font-heading text-[10px] font-bold tracking-[0.08em] text-ink-soft uppercase">
-            Cifrado E2E
+            {mode === "livekit" ? "En vivo" : "Demo"}
           </span>
         </div>
 
-        <div className="mt-3 rounded-[1.25rem] bg-ink px-4 py-3.5 text-white shadow-card">
-          <p className="font-body text-[15px] leading-6">{USER_LINE}</p>
-        </div>
-        <p className="mt-2 text-center font-body text-[11px] text-ink-soft">
-          <Mic className="mr-1 inline size-3 align-[-1px]" aria-hidden />
-          Grabado por voz • 10:42 AM
-        </p>
-
-        <div className="mt-3 flex items-start gap-2">
-          <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-coral text-white">
-            <PawPrint className="size-4" aria-hidden />
-          </div>
-          <div className="min-w-0 flex-1 rounded-[1.25rem] border border-line bg-white px-3.5 py-2.5 shadow-card">
-            <p className="font-heading text-[13px] font-bold text-ink">
-              Dada{" "}
-              <span className="font-body text-[11px] font-normal text-ink-soft">
-                • 1.4ms
-              </span>
-            </p>
-            <p className="mt-0.5 font-body text-[15px] leading-6 text-ink">
-              {ASSISTANT_LINE}
+        {!lastUser && !lastAssistant && !livePartial ? (
+          <div className="mt-3 rounded-[1.25rem] border border-dashed border-line bg-white px-4 py-6 text-center shadow-card">
+            <p className="font-body text-[15px] leading-6 text-ink-soft">
+              Aún no hay transcripción. Habla con Talk y verás tus mensajes aquí.
             </p>
           </div>
-        </div>
-        <p className="mt-2 pl-10 font-body text-[11px] text-ink-soft">
-          Sintetizado por audio neural
-        </p>
+        ) : null}
 
-        <div className="mt-3 rounded-[1.25rem] border border-line bg-white px-4 py-3 shadow-card">
-          <p className="flex items-center gap-2 font-heading text-[10px] font-bold tracking-[0.08em] text-coral uppercase">
-            <span
-              className="size-1.5 animate-pulse rounded-full bg-coral"
-              aria-hidden
-            />
-            Transcribiendo...
-          </p>
-          <p className="mt-1.5 font-body text-[15px] leading-6 text-ink">
-            “{LIVE_LINE}”
-          </p>
-        </div>
+        {lastUser ? (
+          <>
+            <div className="mt-3 rounded-[1.25rem] bg-ink px-4 py-3.5 text-white shadow-card">
+              <p className="font-body text-[15px] leading-6">{lastUser.text}</p>
+            </div>
+            <p className="mt-2 text-center font-body text-[11px] text-ink-soft">
+              <Mic className="mr-1 inline size-3 align-[-1px]" aria-hidden />
+              Grabado por voz
+            </p>
+          </>
+        ) : null}
+
+        {lastAssistant ? (
+          <>
+            <div className="mt-3 flex items-start gap-2">
+              <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-coral text-white">
+                <PawPrint className="size-4" aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1 rounded-[1.25rem] border border-line bg-white px-3.5 py-2.5 shadow-card">
+                <p className="font-heading text-[13px] font-bold text-ink">
+                  Dada
+                </p>
+                <p className="mt-0.5 font-body text-[15px] leading-6 text-ink">
+                  {lastAssistant.text}
+                </p>
+              </div>
+            </div>
+            <p className="mt-2 pl-10 font-body text-[11px] text-ink-soft">
+              Sintetizado por audio neural
+            </p>
+          </>
+        ) : null}
+
+        {livePartial ? (
+          <div className="mt-3 rounded-[1.25rem] border border-line bg-white px-4 py-3 shadow-card">
+            <p className="flex items-center gap-2 font-heading text-[10px] font-bold tracking-[0.08em] text-coral uppercase">
+              <span
+                className="size-1.5 animate-pulse rounded-full bg-coral"
+                aria-hidden
+              />
+              Transcribiendo...
+            </p>
+            <p className="mt-1.5 font-body text-[15px] leading-6 text-ink">
+              “{livePartial}”
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <div className="mt-4 flex gap-2">
         <button
           type="button"
-          onClick={handleCopy}
-          className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-line bg-white px-2 font-heading text-[11px] font-semibold whitespace-nowrap text-ink shadow-card"
+          disabled={!transcriptText}
+          onClick={() => void handleCopy()}
+          className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-line bg-white px-2 font-heading text-[11px] font-semibold whitespace-nowrap text-ink shadow-card disabled:opacity-50"
         >
           <Copy className="size-3.5 shrink-0" aria-hidden />
           {copied ? "Copiado" : "Copiar texto"}
         </button>
         <button
           type="button"
+          disabled={!transcriptText}
           onClick={handleExport}
-          className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-line bg-white px-2 font-heading text-[11px] font-semibold whitespace-nowrap text-ink shadow-card"
+          className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-line bg-white px-2 font-heading text-[11px] font-semibold whitespace-nowrap text-ink shadow-card disabled:opacity-50"
         >
           <Download className="size-3.5 shrink-0" aria-hidden />
           Exportar audio

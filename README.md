@@ -1,23 +1,40 @@
-# Virtual assistant
+# Virtual cat (Kinetic Cat)
 
-First UI slice: a 2D talking-cat stage (placeholder avatar, talk control, captions). No live voice, auth, or database yet.
+2D talking-cat voice UI with **LiveKit Agents** for realtime speech (STT → LLM → TTS). The cat is drawn in the browser and animated from mic + agent state—not a vendor video avatar.
 
 ## Package manager
 
-Use **pnpm only**. Do not use npm or yarn — they will create the wrong lockfile (`package-lock.json` / `yarn.lock`). Corepack should pick up the `packageManager` field in `package.json`.
+Use **pnpm only** (`packageManager` in `package.json`). Do not use npm or yarn.
 
 ```bash
 corepack enable
 pnpm install
+cp .env.example .env.local   # optional — omit LiveKit keys for demo mode
 pnpm dev
 ```
 
-Then open the URL printed by Next.js (this project’s `dev` script uses port **43123**).
+Open **http://127.0.0.1:43123**
 
-Other scripts:
+### Demo mode
+
+If `LIVEKIT_*` env vars are unset, the app runs in **demo mode**: Talk still requires the microphone; Stop triggers a mock transcript so you can test the cat UI without cloud keys.
+
+### Live voice
+
+1. Add LiveKit credentials to `.env.local` (see `.env.example`).
+2. Configure and run the Python agent in [`agent/`](agent/README.md).
+3. Restart `pnpm dev`. The header should show live agent status when connected.
+
+## Scripts
 
 ```bash
 pnpm lint
 pnpm build
 pnpm start
 ```
+
+## Architecture
+
+- **Next.js** — cat stage, mic-gated Talk/Stop, captions, token route at `/api/livekit/token`
+- **LiveKit room** — browser publishes mic; agent publishes audio + data (transcripts, `idle` / `listening` / `talking`)
+- **Python agent** — `AgentSession` with OpenAI STT/LLM/TTS by default (swap plugins as needed)
