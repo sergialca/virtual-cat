@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --port 43123",
     "build": "next build",
+    "build:pages": "node scripts/export-github-pages.mjs",
     "start": "next start",
     "lint": "eslint"
   },

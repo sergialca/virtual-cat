@@ -152,7 +152,12 @@ export function useVoiceCatSession() {
       return roomRef.current;
     }
 
-    const res = await fetch("/api/livekit/token");
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+    const res = await fetch(`${basePath}/api/livekit/token`);
+    if (res.status === 404) {
+      setMode("mock");
+      return null;
+    }
     if (!res.ok) {
       throw new Error("Could not mint a LiveKit token.");
     }
