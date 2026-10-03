@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -25,8 +26,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="es"
       className={`${jakarta.variable} ${inter.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-canvas font-body text-ink">
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`(function(){try{if(localStorage.getItem("theme")==="dark")document.documentElement.classList.add("dark")}catch(e){}})()`}
+        </Script>
         {children}
       </body>
     </html>

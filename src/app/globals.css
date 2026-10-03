@@ -11,16 +11,22 @@
   --font-body: var(--font-inter), sans-serif;
   --font-heading: var(--font-jakarta), sans-serif;
   --font-mono: ui-monospace, monospace;
-  --color-canvas: #fbf9f6;
-  --color-ink: #1f2232;
-  --color-ink-soft: #77767d;
-  --color-coral: #ff5c39;
-  --color-online: #1f9d55;
-  --color-line: #e8e4dd;
-  --color-chip: #efeeeb;
-  --shadow-card: 0 4px 20px -2px rgba(31, 34, 50, 0.05),
-    0 1px 3px 0 rgba(31, 34, 50, 0.03);
-  --shadow-coral: 0 8px 16px -2px rgba(255, 92, 57, 0.35);
+  --color-canvas: var(--canvas);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-coral: var(--coral);
+  --color-on-coral: var(--on-coral);
+  --color-online: var(--online);
+  --color-line: var(--line);
+  --color-chip: var(--chip);
+  --color-surface: var(--surface);
+  --color-interactive: var(--interactive);
+  --color-mark: var(--mark);
+  --color-on-mark: var(--on-mark);
+  --color-bubble: var(--bubble);
+  --color-on-bubble: var(--on-bubble);
+  --shadow-card: var(--card-shadow);
+  --shadow-coral: var(--coral-shadow);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -60,8 +66,26 @@
 }
 
 :root {
+  --canvas: #fbf9f6;
+  --ink: #1f2232;
+  --ink-soft: #77767d;
+  --coral: #ff5c39;
+  --on-coral: #ffffff;
+  --online: #1f9d55;
+  --line: #e8e4dd;
+  --chip: #efeeeb;
+  --surface: #ffffff;
+  --interactive: #efeeeb;
+  --mark: #1f2232;
+  --on-mark: #ffffff;
+  --bubble: #1f2232;
+  --on-bubble: #ffffff;
+  --card-shadow: 0 4px 20px -2px rgba(31, 34, 50, 0.05),
+    0 1px 3px 0 rgba(31, 34, 50, 0.03);
+  --coral-shadow: 0 8px 16px -2px rgba(255, 92, 57, 0.35);
   --background: #fbf9f6;
   --foreground: #1b1c1a;
+  color-scheme: light;
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
@@ -95,8 +119,25 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
+  --canvas: #0d0f12;
+  --ink: #f1f5f9;
+  --ink-soft: #94a3b8;
+  --coral: #ff6b4a;
+  --on-coral: #0d0f12;
+  --online: #3ddc97;
+  --line: rgba(255, 255, 255, 0.08);
+  --chip: #14171f;
+  --surface: #1b202c;
+  --interactive: #262c3a;
+  --mark: #262c3a;
+  --on-mark: #ff6b4a;
+  --bubble: #14171f;
+  --on-bubble: #f1f5f9;
+  --card-shadow: none;
+  --coral-shadow: 0 0 24px rgba(255, 107, 74, 0.22);
+  --background: #0d0f12;
+  --foreground: #f1f5f9;
+  color-scheme: dark;
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
@@ -153,6 +194,11 @@
   }
 }
 
+.dark .cat-cartoon svg {
+  filter: drop-shadow(0 0 1px rgba(241, 245, 249, 0.35))
+    drop-shadow(0 16px 28px rgba(0, 0, 0, 0.55));
+}
+
 .voice-volume {
   appearance: none;
   height: 6px;
@@ -160,8 +206,8 @@
   border-radius: 9999px;
   background: linear-gradient(
     to right,
-    #ff5c39 var(--volume),
-    #e8e4dd var(--volume)
+    var(--coral) var(--volume),
+    var(--line) var(--volume)
   );
 }
 
@@ -169,19 +215,19 @@
   appearance: none;
   width: 22px;
   height: 22px;
-  border: 3px solid #ffffff;
+  border: 3px solid var(--surface);
   border-radius: 9999px;
-  background: #ff5c39;
-  box-shadow: 0 2px 8px rgba(255, 92, 57, 0.45);
+  background: var(--coral);
+  box-shadow: var(--coral-shadow);
 }
 
 .voice-volume::-moz-range-thumb {
   width: 22px;
   height: 22px;
-  border: 3px solid #ffffff;
+  border: 3px solid var(--surface);
   border-radius: 9999px;
-  background: #ff5c39;
-  box-shadow: 0 2px 8px rgba(255, 92, 57, 0.45);
+  background: var(--coral);
+  box-shadow: var(--coral-shadow);
 }
 
 @layer base {

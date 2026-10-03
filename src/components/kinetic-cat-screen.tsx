@@ -10,13 +10,16 @@ import {
   MicOff,
   PawPrint,
   RotateCcw,
+  Moon,
   SlidersHorizontal,
+  Sun,
   UserRound,
   Volume1,
   Volume2,
 } from "lucide-react";
 import { cn } from "cn";
 import { useMicrophone, type MicState } from "@/hooks/use-microphone";
+import { useTheme } from "@/hooks/use-theme";
 import { useVoiceCatSession } from "@/hooks/use-voice-cat-session";
 
 const WAVE_HEIGHTS = [
@@ -48,6 +51,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
   const [spatial, setSpatial] = useState(false);
   const [copied, setCopied] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
+  const { theme, toggleTheme } = useTheme();
 
   const {
     micState,
@@ -156,7 +160,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-canvas px-5 pt-4 pb-6">
       <header className="flex items-center gap-3">
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-ink text-white shadow-[0_8px_16px_-6px_rgba(31,34,50,0.45)]">
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-mark text-on-mark shadow-[0_8px_16px_-6px_rgba(31,34,50,0.45)] dark:shadow-none">
           <PawPrint className="size-5" aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
@@ -177,7 +181,22 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
         </button>
         <button
           type="button"
-          className="flex size-10 items-center justify-center rounded-full border-2 border-ink text-ink"
+          onClick={toggleTheme}
+          aria-pressed={theme === "dark"}
+          aria-label={
+            theme === "dark" ? "Cambiar a tema claro" : "Cambiar a tema oscuro"
+          }
+          className="flex size-10 items-center justify-center rounded-full border border-line text-ink"
+        >
+          {theme === "dark" ? (
+            <Sun className="size-5" aria-hidden />
+          ) : (
+            <Moon className="size-5" aria-hidden />
+          )}
+        </button>
+        <button
+          type="button"
+          className="flex size-10 items-center justify-center rounded-full border-2 border-ink text-ink dark:border-line"
           aria-label="Cuenta"
         >
           <UserRound className="size-5" />
@@ -185,7 +204,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
       </header>
 
       <div className="mt-5 flex justify-center">
-        <p className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 font-heading text-[10px] font-bold tracking-[0.08em] text-ink uppercase shadow-card">
+        <p className="inline-flex items-center gap-2 rounded-full border border-transparent bg-surface px-3 py-1.5 font-heading text-[10px] font-bold tracking-[0.08em] text-ink uppercase shadow-card dark:border-line">
           <span
             className={cn(
               "size-1.5 rounded-full",
@@ -202,7 +221,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
 
       <p
         className={cn(
-          "mx-auto mt-4 max-w-[20.5rem] rounded-[1.35rem] bg-white px-5 py-3 text-center font-body text-[15px] leading-6 shadow-card",
+          "mx-auto mt-4 max-w-[20.5rem] rounded-[1.35rem] border border-transparent bg-surface px-5 py-3 text-center font-body text-[15px] leading-6 shadow-card dark:border-line",
           micState === "denied" || micState === "error"
             ? "text-coral"
             : "text-ink",
@@ -228,7 +247,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
 
       <section
         aria-label="Entrada de micrófono"
-        className="rounded-[1.35rem] border border-line bg-white px-4 pt-4 pb-4 shadow-card"
+        className="rounded-[1.35rem] border border-line bg-surface px-4 pt-4 pb-4 shadow-card"
       >
         <div className="flex items-center justify-between gap-3 px-1">
           <p className="flex items-center gap-1.5 font-heading text-[11px] font-bold tracking-[0.04em] text-ink-soft uppercase">
@@ -249,8 +268,10 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
             onClick={() => void handleTalkToggle()}
             aria-pressed={isTalking}
             className={cn(
-              "inline-flex h-14 min-w-40 items-center justify-center gap-2 rounded-full px-8 font-heading text-base font-bold text-white shadow-coral transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60",
-              isTalking ? "bg-ink" : "bg-coral",
+              "inline-flex h-14 min-w-40 items-center justify-center gap-2 rounded-full px-8 font-heading text-base font-bold text-on-coral shadow-coral transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60",
+              isTalking
+                ? "bg-ink dark:bg-coral dark:shadow-[0_0_0_6px_rgba(255,107,74,0.2),0_0_28px_rgba(255,107,74,0.45)]"
+                : "bg-coral dark:hover:bg-[#ff7a59]",
             )}
           >
             {micState === "requesting" ? (
@@ -279,7 +300,9 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
             onClick={() => setSpatial((value) => !value)}
             className={cn(
               "inline-flex h-10 items-center justify-center gap-1.5 rounded-full px-3 font-heading text-[13px] font-semibold",
-              spatial ? "bg-coral/10 text-coral" : "bg-chip text-ink-soft",
+              spatial
+                ? "bg-coral/10 text-coral dark:bg-interactive"
+                : "bg-chip text-ink-soft",
             )}
           >
             <AudioLines className="size-3.5" aria-hidden />
@@ -297,7 +320,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
 
       <section
         aria-label="Volumen de voz"
-        className="mt-3 rounded-[1.35rem] border border-line bg-white px-4 py-3.5 shadow-card"
+        className="mt-3 rounded-[1.35rem] border border-line bg-surface px-4 py-3.5 shadow-card"
       >
         <div className="flex items-center gap-2">
           <Volume2 className="size-4 text-coral" aria-hidden />
@@ -339,7 +362,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
         </div>
 
         {!lastUser && !lastAssistant && !livePartial ? (
-          <div className="mt-3 rounded-[1.25rem] border border-dashed border-line bg-white px-4 py-6 text-center shadow-card">
+          <div className="mt-3 rounded-[1.25rem] border border-dashed border-line bg-surface px-4 py-6 text-center shadow-card">
             <p className="font-body text-[15px] leading-6 text-ink-soft">
               Aún no hay transcripción. Habla con Talk y verás tus mensajes aquí.
             </p>
@@ -348,7 +371,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
 
         {lastUser ? (
           <>
-            <div className="mt-3 rounded-[1.25rem] bg-ink px-4 py-3.5 text-white shadow-card">
+            <div className="mt-3 rounded-[1.25rem] border border-transparent bg-bubble px-4 py-3.5 text-on-bubble shadow-card dark:border-line">
               <p className="font-body text-[15px] leading-6">{lastUser.text}</p>
             </div>
             <p className="mt-2 text-center font-body text-[11px] text-ink-soft">
@@ -361,10 +384,10 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
         {lastAssistant ? (
           <>
             <div className="mt-3 flex items-start gap-2">
-              <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-coral text-white">
+              <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-coral text-on-coral">
                 <PawPrint className="size-4" aria-hidden />
               </div>
-              <div className="min-w-0 flex-1 rounded-[1.25rem] border border-line bg-white px-3.5 py-2.5 shadow-card">
+              <div className="min-w-0 flex-1 rounded-[1.25rem] border border-line bg-surface px-3.5 py-2.5 shadow-card dark:border-l-2 dark:border-l-coral">
                 <p className="font-heading text-[13px] font-bold text-ink">
                   Dada
                 </p>
@@ -380,7 +403,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
         ) : null}
 
         {livePartial ? (
-          <div className="mt-3 rounded-[1.25rem] border border-line bg-white px-4 py-3 shadow-card">
+          <div className="mt-3 rounded-[1.25rem] border border-line bg-surface px-4 py-3 shadow-card">
             <p className="flex items-center gap-2 font-heading text-[10px] font-bold tracking-[0.08em] text-coral uppercase">
               <span
                 className="size-1.5 animate-pulse rounded-full bg-coral"
@@ -400,7 +423,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
           type="button"
           disabled={!transcriptText}
           onClick={() => void handleCopy()}
-          className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-line bg-white px-2 font-heading text-[11px] font-semibold whitespace-nowrap text-ink shadow-card disabled:opacity-50"
+          className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-line bg-surface px-2 font-heading text-[11px] font-semibold whitespace-nowrap text-ink shadow-card disabled:opacity-50"
         >
           <Copy className="size-3.5 shrink-0" aria-hidden />
           {copied ? "Copiado" : "Copiar texto"}
@@ -409,7 +432,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
           type="button"
           disabled={!transcriptText}
           onClick={handleExport}
-          className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-line bg-white px-2 font-heading text-[11px] font-semibold whitespace-nowrap text-ink shadow-card disabled:opacity-50"
+          className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-line bg-surface px-2 font-heading text-[11px] font-semibold whitespace-nowrap text-ink shadow-card disabled:opacity-50"
         >
           <Download className="size-3.5 shrink-0" aria-hidden />
           Exportar audio
@@ -417,7 +440,7 @@ export function KineticCatScreen({ catSvg }: { catSvg: string }) {
         <button
           type="button"
           onClick={handleReset}
-          className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-line bg-white px-2 font-heading text-[11px] font-semibold whitespace-nowrap text-ink shadow-card"
+          className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-line bg-surface px-2 font-heading text-[11px] font-semibold whitespace-nowrap text-ink shadow-card"
         >
           <RotateCcw className="size-3.5 shrink-0" aria-hidden />
           Reiniciar
